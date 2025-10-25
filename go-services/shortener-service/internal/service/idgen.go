@@ -2,7 +2,6 @@ package service
 
 import (
 	"crypto/rand"
-	"encoding/base62"
 	"fmt"
 	"math/big"
 
@@ -73,9 +72,4 @@ func GenerateRandomCode(length int) (string, error) {
 	}
 
 	return string(result), nil
-}
-
-// base62 编码包装
-func encodeBase62WithLib(data []byte) string {
-	return base62.StdEncoding.EncodeToString(data)
 }
