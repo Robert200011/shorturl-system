@@ -1,0 +1,9 @@
+go 1.25
+
+use (
+	go-services/analytics-service
+	go-services/gateway
+	go-services/redirect-service
+	go-services/shared
+	go-services/shortener-service
+)
