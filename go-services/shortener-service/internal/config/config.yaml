@@ -1,0 +1,31 @@
+Name: shortener-service
+Host: 0.0.0.0
+Port: 8001
+
+# 数据库配置 (使用本地MySQL)
+Mysql:
+  # 根据你的本地MySQL配置修改用户名和密码
+  DataSource: root:122722@tcp(localhost:3306)/shorturl?charset=utf8mb4&parseTime=True&loc=Local
+
+# Redis配置
+Redis:
+  Host: localhost:6379
+  Type: node
+  Pass: ""
+  DB: 0
+
+# 雪花算法配置
+Snowflake:
+  MachineID: 1
+
+# 短链配置
+ShortUrl:
+  Domain: "http://localhost:8002"  # 重定向服务域名
+  CodeLength: 7                      # 短链码长度
+  CacheTTL: 3600                     # 缓存过期时间(秒)
+
+# 日志配置
+Log:
+  ServiceName: shortener-service
+  Mode: console
+  Level: info

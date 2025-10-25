@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库 (已注释 - 使用本地MySQL)
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: shorturl_mysql
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root123
+  #     MYSQL_DATABASE: shorturl
+  #     TZ: Asia/Shanghai
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #     - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+  #   command: --default-authentication-plugin=mysql_native_password
+  #   networks:
+  #     - shorturl_network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: shorturl_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - shorturl_network
+
+  # Kafka (可选，后续阶段使用)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: shorturl_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - shorturl_network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: shorturl_kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - shorturl_network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  shorturl_network:
+    driver: bridge
