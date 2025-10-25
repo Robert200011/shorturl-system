@@ -1,0 +1,8 @@
+go 1.25
+use (
+	./redirect-service
+	./shared
+	./gateway
+	./shortener-service
+	./analytics-service
+)
