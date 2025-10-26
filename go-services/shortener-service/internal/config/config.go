@@ -3,12 +3,12 @@ package config
 import "github.com/zeromicro/go-zero/rest"
 
 type Config struct {
-	rest.RestConf
-	Mysql     MysqlConfig
-	Redis     RedisConfig
-	Snowflake SnowflakeConfig
-	ShortUrl  ShortUrlConfig
-	Log       LogConfig
+	rest.RestConf // 这里已经包含了日志配置
+	Mysql         MysqlConfig
+	Redis         RedisConfig
+	Snowflake     SnowflakeConfig
+	ShortUrl      ShortUrlConfig
+	// 删除 Log LogConfig 这一行
 }
 
 type MysqlConfig struct {
@@ -32,8 +32,4 @@ type ShortUrlConfig struct {
 	CacheTTL   int
 }
 
-type LogConfig struct {
-	ServiceName string
-	Mode        string
-	Level       string
-}
+// 删除整个 LogConfig 结构体
