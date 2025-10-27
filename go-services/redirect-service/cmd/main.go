@@ -9,10 +9,24 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+
+	"redirect-service/internal/handler"
+	"redirect-service/internal/model"
+	"redirect-service/internal/repo"
+	"redirect-service/internal/service"
+)
+
+// 配置信息
+const (
+	redisAddr    = "localhost:6379"
+	mysqlDSN     = "root:122722@tcp(localhost:3306)/shorturl?charset=utf8mb4&parseTime=True&loc=Local"
+	shortenerURL = "http://localhost:8001"
+	serverPort   = ":8002"
 )
 
 type RedirectService struct {
 	redisClient  *redis.Client
+	visitRepo    repo.VisitLogRepo
 	shortenerURL string
 }
 
@@ -26,7 +40,7 @@ type ShortLink struct {
 func main() {
 	// 初始化Redis客户端
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     redisAddr,
 		Password: "",
 		DB:       0,
 	})
@@ -36,22 +50,48 @@ func main() {
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
+	log.Println("✓ Connected to Redis")
 
+	// 初始化数据库Repository
+	visitRepo, err := repo.NewVisitLogRepo(mysqlDSN)
+	if err != nil {
+		log.Fatalf("Failed to init visit log repo: %v", err)
+	}
+	log.Println("✓ Connected to MySQL")
+
+	// 创建服务实例
 	svc := &RedirectService{
 		redisClient:  redisClient,
-		shortenerURL: "http://localhost:8001",
+		visitRepo:    visitRepo,
+		shortenerURL: shortenerURL,
 	}
 
+	// 创建统计处理器
+	statsHandler := handler.NewStatsHandler(visitRepo)
+
+	// 注册路由
+	http.HandleFunc("/api/stats/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path[len("/api/stats/"):] != "" {
+			if len(r.URL.Path) > len("/api/stats/") &&
+				r.URL.Path[len(r.URL.Path)-5:] == "/logs" {
+				statsHandler.GetRecentLogs(w, r)
+			} else {
+				statsHandler.GetStats(w, r)
+			}
+		} else {
+			http.Error(w, "Not Found", http.StatusNotFound)
+		}
+	})
 	http.HandleFunc("/", svc.handleRedirect)
 
-	fmt.Println("Redirect service starting on :8002...")
-	log.Fatal(http.ListenAndServe(":8002", nil))
+	log.Printf("🚀 Redirect service starting on %s...\n", serverPort)
+	log.Fatal(http.ListenAndServe(serverPort, nil))
 }
 
 func (s *RedirectService) handleRedirect(w http.ResponseWriter, r *http.Request) {
 	// 提取短链码
-	shortCode := r.URL.Path[1:] // 去掉开头的 "/"
-	if shortCode == "" {
+	shortCode := r.URL.Path[1:]
+	if shortCode == "" || shortCode == "api" {
 		http.Error(w, "Short code is required", http.StatusBadRequest)
 		return
 	}
@@ -61,7 +101,7 @@ func (s *RedirectService) handleRedirect(w http.ResponseWriter, r *http.Request)
 	// 先从Redis缓存查询
 	originalURL, err := s.getFromCache(ctx, shortCode)
 	if err == nil && originalURL != "" {
-		// 记录访问日志（异步）
+		// 异步记录访问日志
 		go s.logVisit(shortCode, r)
 		http.Redirect(w, r, originalURL, http.StatusFound)
 		return
@@ -75,7 +115,7 @@ func (s *RedirectService) handleRedirect(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 记录访问日志（异步）
+	// 异步记录访问日志
 	go s.logVisit(shortCode, r)
 
 	// 重定向
@@ -94,7 +134,6 @@ func (s *RedirectService) getFromCache(ctx context.Context, code string) (string
 		return "", err
 	}
 
-	// 检查状态和过期时间
 	if link.Status != 1 {
 		return "", fmt.Errorf("link is inactive")
 	}
@@ -143,16 +182,28 @@ func (s *RedirectService) getFromAPI(ctx context.Context, code string) (string, 
 }
 
 func (s *RedirectService) logVisit(shortCode string, r *http.Request) {
-	// 这里可以将访问日志发送到Kafka或直接写入数据库
-	log.Printf("Visit: code=%s, ip=%s, ua=%s, referer=%s",
-		shortCode,
-		r.RemoteAddr,
-		r.UserAgent(),
-		r.Referer(),
-	)
+	// 解析访问信息
+	visitInfo := service.ParseRequest(r)
+
+	// 创建访问日志
+	log := &model.VisitLog{
+		ShortCode:  shortCode,
+		IP:         visitInfo.IP,
+		UserAgent:  visitInfo.UserAgent,
+		Referer:    visitInfo.Referer,
+		DeviceType: visitInfo.DeviceType,
+		Browser:    visitInfo.Browser,
+		OS:         visitInfo.OS,
+		VisitedAt:  time.Now(),
+	}
+
+	// 保存到数据库
+	ctx := context.Background()
+	if err := s.visitRepo.Create(ctx, log); err != nil {
+		fmt.Printf("Failed to save visit log: %v\n", err)
+	}
 
 	// 增加Redis中的访问计数
-	ctx := context.Background()
 	countKey := "visit:count:" + shortCode
 	s.redisClient.Incr(ctx, countKey)
 }
