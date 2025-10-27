@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json" // 🆕 添加这行
 	"net/http"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
@@ -23,8 +24,18 @@ func NewBatchHandler(svc service.ShortenerService) *BatchHandler {
 func (h *BatchHandler) BatchCreateShortLinks(w http.ResponseWriter, r *http.Request) {
 	var req types.BatchShortenRequest
 
-	if err := httpx.Parse(r, &req); err != nil {
+	// 手动解析 JSON
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.ErrorCtx(r.Context(), w, err)
+		return
+	}
+
+	// 基本验证
+	if len(req.URLs) == 0 {
+		httpx.WriteJsonCtx(r.Context(), w, http.StatusBadRequest, types.CommonResponse{
+			Code:    1,
+			Message: "urls is required",
+		})
 		return
 	}
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
@@ -23,8 +24,18 @@ func NewShortenHandler(svc service.ShortenerService) *ShortenHandler {
 func (h *ShortenHandler) CreateShortLink(w http.ResponseWriter, r *http.Request) {
 	var req types.ShortenRequest
 
-	if err := httpx.Parse(r, &req); err != nil {
+	// 手动解析 JSON，不使用 httpx.Parse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.ErrorCtx(r.Context(), w, err)
+		return
+	}
+
+	// 基本验证
+	if req.OriginalURL == "" {
+		httpx.WriteJsonCtx(r.Context(), w, http.StatusBadRequest, types.CommonResponse{
+			Code:    1,
+			Message: "original_url is required",
+		})
 		return
 	}
 
@@ -42,15 +53,19 @@ func (h *ShortenHandler) CreateShortLink(w http.ResponseWriter, r *http.Request)
 }
 
 // GetShortLink 获取短链接详情
+// GetShortLink 获取短链接详情
 func (h *ShortenHandler) GetShortLink(w http.ResponseWriter, r *http.Request) {
-	var req types.GetLinkRequest
-
-	if err := httpx.Parse(r, &req); err != nil {
-		httpx.ErrorCtx(r.Context(), w, err)
+	// 从 URL 路径获取参数
+	code := r.URL.Path[len("/api/links/"):]
+	if code == "" {
+		httpx.WriteJsonCtx(r.Context(), w, http.StatusBadRequest, types.CommonResponse{
+			Code:    1,
+			Message: "short_code is required",
+		})
 		return
 	}
 
-	resp, err := h.svc.GetShortLink(r.Context(), req.ShortCode)
+	resp, err := h.svc.GetShortLink(r.Context(), code)
 	if err != nil {
 		httpx.ErrorCtx(r.Context(), w, err)
 		return
