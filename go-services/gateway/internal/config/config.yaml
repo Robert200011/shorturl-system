@@ -1,0 +1,38 @@
+Name: gateway
+Host: 0.0.0.0
+Port: 8000
+
+# JWT配置
+JWT:
+  Secret: "your-secret-key-change-in-production"
+  ExpireHour: 168  # 7天
+
+# 鉴权配置
+Auth:
+  Enabled: true
+  # 不需要鉴权的路径（支持前缀匹配）
+  ExcludePaths:
+    - /api/auth/login
+    - /api/auth/register
+    - /api/health
+    # 重定向服务不需要鉴权
+    - /r/
+  # 需要管理员权限的路径
+  AdminPaths:
+    - /api/admin/
+
+# 限流配置
+RateLimit:
+  Enabled: true
+  Requests: 100      # 每分钟100个请求
+  WindowSec: 60      # 时间窗口60秒
+  BurstSize: 10      # 允许突发10个请求
+
+# 后端服务配置
+Services:
+  Shortener:
+    Host: "http://localhost:8001"
+    Timeout: 5000
+  Redirect:
+    Host: "http://localhost:8002"
+    Timeout: 5000
