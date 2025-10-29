@@ -1,0 +1,25 @@
+Name: gateway-service
+Host: 0.0.0.0
+Port: 8000
+
+# 上游服务配置
+Upstream:
+  ShortenerURL: "http://localhost:8001"
+  RedirectURL: "http://localhost:8002"
+
+# Redis配置
+Redis:
+  Host: "localhost:6379"
+  Pass: ""
+  DB: 0
+
+# JWT配置
+JWT:
+  Secret: "your-secret-key-change-in-production"
+  ExpireTime: 86400  # 24小时
+
+# 限流配置
+RateLimit:
+  GlobalLimit: 1000   # 全局 1000 req/min
+  IPLimit: 100        # IP 100 req/min
+  UserLimit: 200      # 用户 200 req/min
