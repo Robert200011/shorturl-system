@@ -1,0 +1,14 @@
+Name: analytics-service
+Host: 0.0.0.0
+Port: 8003
+
+# MySQL配置
+Mysql:
+  DataSource: root:122722@tcp(localhost:3306)/shorturl?charset=utf8mb4&parseTime=True&loc=Local
+
+# Kafka配置
+Kafka:
+  Brokers:
+    - localhost:9092
+  Topic: visit-events
+  GroupID: analytics-consumer-group
